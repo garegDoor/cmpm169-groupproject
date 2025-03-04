@@ -2,6 +2,20 @@ let timer;
 let phaseIndex = 0;
 let focusCount = 0; // Counter for completed focus phases
 
+// Initialize Pomomon data -----------------------------------------------------------------------------------
+let experience = 0;
+let maxExperience = 100;
+let level = 1;  // Player level
+let button;
+let eggImage;
+let monsterImage;
+let isEgg = true;
+let timerP = 0;
+let isTimerDone = false;
+let elapsedTime = 0;
+let canCollect = false;  // If the xp can be collected
+// End of pomomon initializing -------------------------------------------------------------------------------
+
 // Initialize store and inventory ----------------------------------------------------------------------------
 
 let playerCurrency = 150;
@@ -43,18 +57,31 @@ let timeLeft = phases[phaseIndex].duration;
 let isRunning = false;  // Tracks whether the timer is running
 let hasStarted = false; // Tracks if the timer has been started at least once
 
+function preload() {
+    eggImage = loadImage('egg.png');  // Just use this to load the egg image
+    monsterImage = loadImage('monster.png');  // Load the monster image (Any placeholder will do)
+  }
+  
+
 function setup() {
     createCanvas(windowWidth, windowHeight);
     textAlign(CENTER, CENTER);
     textSize(24);
     timer = setInterval(tick, 1000); // Start a timer that calls tick() every second
 
-    // set Panel layout for Shop and Inventory
+    // set Panel layout for Shop and Inventory -------------------------------------
     inventoryX = 2 * width / 4 + inventoryWidth/4;
     inventoryY = height / 4 + 40;
     shopX = 2 * width / 4 + inventoryWidth + shopWidth;
     shopY = height/4 + 40;
+    // ------------------------------------------------------------------------------
 
+    button = createButton('Collect Experience');
+    button.position(width/3, height/2);
+    button.mousePressed(increaseExperience);
+    button.attribute('disabled', '');
+    
+    resetTimerP();
 }
 
 function draw() {
@@ -151,6 +178,44 @@ function draw() {
         h: ITEM_HEIGHT
         };
     }
+
+    // Pomomon Code: -------------------------------------------------------------------------------
+    if (isEgg) {
+        image(eggImage, width/3, height/3, 100, 100);
+      } else {
+        image(monsterImage, width/3, height/3, 100, 100);
+      }
+      
+      fill(0, 255, 0);
+      noStroke();
+      rect(8 * width/28, 3 * height/7, map(experience, 0, maxExperience, 0, 300), 30);
+      
+      fill(0);
+      textSize(20);
+      textAlign(CENTER, CENTER);
+      text('Level: ' + level, 4 * width / 11, 2 * height/7);
+      text('Experience: ' + experience + '/' + maxExperience, 4 * width / 11, 6 * height/13);
+      
+      if (!isTimerDone) {
+        elapsedTime = floor((millis() - timerP) / 1000);
+        textSize(18);
+        text('Time until monster: ' + (5 - elapsedTime) + 's', 4 * width / 11, 7 * height /13);
+        
+        // Once time has elapsed the button can be pressed and the monster will be shown
+        if (elapsedTime >= 5) {
+          isEgg = false;
+          isTimerDone = true;
+          button.removeAttribute('disabled');
+          canCollect = true;
+        }
+      }
+    
+      if (experience >= maxExperience) {
+        experience = 0;
+        level++;
+        textSize(24);
+        text('Level Up! Now at Level ' + level, 4 * width / 11, 8 * height/13);
+      }
 }
 
 // Draws the phase indicators at the top of the screen
@@ -359,4 +424,20 @@ function feedPet(item, index) {
         description: details.description 
       });
     }
+  }
+
+  function increaseExperience() {
+    if (canCollect && experience < maxExperience) {
+      experience += 10;
+      canCollect = false;
+      button.attribute('disabled', '');
+  
+      resetTimerP();
+      isEgg = true;
+      isTimerDone = false;
+    }
+  }
+  
+  function resetTimerP() {
+    timerP = millis();
   }
