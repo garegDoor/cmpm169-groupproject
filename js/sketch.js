@@ -2,6 +2,36 @@ let timer;
 let phaseIndex = 0;
 let focusCount = 0; // Counter for completed focus phases
 
+// Initialize store and inventory ----------------------------------------------------------------------------
+
+let playerCurrency = 150;
+
+//Player's inventory
+let inventory = [];
+
+// Shop items available for purchase.
+let shopItems = [
+    { name: "Apple", price: 20 },
+    { name: "Steak", price: 50 },
+    { name: "Carrot", price: 12 }
+  ];
+
+// Details for each food item (used when adding to inventory).
+const itemDetails = {
+    "Apple":  { nutrition: 10, description: "A juicy apple." },
+    "Steak":  { nutrition: 30, description: "A hearty steak." },
+    "Carrot": { nutrition: 5,  description: "A crunchy carrot." }
+  };
+
+// Panel layout
+let inventoryX, inventoryY;
+const inventoryWidth = 250;
+let shopX, shopY;
+const shopWidth = 250;
+const ITEM_HEIGHT = 30, ITEM_PADDING = 10;
+
+// End of store and inventory initializing --------------------------------------------------------------------
+
 // Define the phases of the Pomodoro cycle
 let phases = [
     { name: "Pomomon", duration: 25 * 60, color: '#d95550', interactive: false },
@@ -18,10 +48,18 @@ function setup() {
     textAlign(CENTER, CENTER);
     textSize(24);
     timer = setInterval(tick, 1000); // Start a timer that calls tick() every second
+
+    // set Panel layout for Shop and Inventory
+    inventoryX = 2 * width / 4 + inventoryWidth/4;
+    inventoryY = height / 4 + 40;
+    shopX = 2 * width / 4 + inventoryWidth + shopWidth;
+    shopY = height/4 + 40;
+
 }
 
 function draw() {
     background(255); // White background
+    textAlign(CENTER, CENTER);
     drawPhaseIndicators();
 
     let currentColor = phases[phaseIndex].color;
@@ -51,6 +89,68 @@ function draw() {
 
     drawPomomonSection();
     drawInventorySection();
+
+    // Store and Inventory -----------------------------------------------------------------
+
+    //Display Player Currency
+    textSize(18);
+    fill(0);
+    textAlign(CENTER, TOP);
+    text("Currency: " + playerCurrency, 11 * width / 17, height /4);
+
+    // Draw Inventory Panel
+    // Background
+    fill(240);
+    stroke(0);
+    let invPanelHeight = (inventory.length + 1) * (ITEM_HEIGHT + ITEM_PADDING) + ITEM_PADDING;
+    rect(inventoryX, inventoryY, inventoryWidth, invPanelHeight);
+    noStroke();
+
+    // Header for inventory
+    fill(0);
+    textAlign(LEFT, CENTER);
+    text("Inventory:", inventoryX + ITEM_PADDING, inventoryY + ITEM_PADDING + ITEM_HEIGHT / 2);
+
+    // List each inventory item
+    for (let i = 0; i < inventory.length; i++) {
+        let item = inventory[i];
+        let y = inventoryY + ITEM_PADDING + (i + 1) * (ITEM_HEIGHT + ITEM_PADDING);
+        let label = item.name + " (" + item.quantity + ")";
+        text(label, inventoryX + ITEM_PADDING, y + ITEM_HEIGHT / 2);
+        // Click detection
+        item.box = {
+        x: inventoryX + ITEM_PADDING,
+        y: y,
+        w: textWidth(label),
+        h: ITEM_HEIGHT
+        };
+    }
+
+    // Draw Shop Panel
+    fill(240);
+    stroke(0);
+    let shopPanelHeight = (shopItems.length + 1) * (ITEM_HEIGHT + ITEM_PADDING) + ITEM_PADDING;
+    rect(shopX, shopY, shopWidth, shopPanelHeight);
+    noStroke();
+
+    // Header for shop
+    fill(0);
+    textAlign(LEFT, CENTER);
+    text("Shop:", shopX + ITEM_PADDING, shopY + ITEM_PADDING + ITEM_HEIGHT / 2);
+
+    // Shop item with its price
+    for (let i = 0; i < shopItems.length; i++) {
+        let item = shopItems[i];
+        let y = shopY + ITEM_PADDING + (i + 1) * (ITEM_HEIGHT + ITEM_PADDING);
+        let label = item.name + " - " + item.price + " currency";
+        text(label, shopX + ITEM_PADDING, y + ITEM_HEIGHT / 2);
+        item.box = {
+        x: shopX + ITEM_PADDING,
+        y: y,
+        w: textWidth(label),
+        h: ITEM_HEIGHT
+        };
+    }
 }
 
 // Draws the phase indicators at the top of the screen
@@ -181,4 +281,82 @@ function mousePressed() {
             nextPhase();
         }
     }
+
+    // Inventory and Store ----------------------------------------------------------
+    // Check for Inventory Item Clicks (to feed) 
+    if (mouseX >= inventoryX && mouseX <= inventoryX + inventoryWidth) {
+        // Loop through inventory items
+        for (let i = 0; i < inventory.length; i++) {
+        let box = inventory[i].box;
+        if (
+            mouseX >= box.x && mouseX <= box.x + box.w &&
+            mouseY >= box.y && mouseY <= box.y + box.h
+        ) {
+            // Feed using the clicked item.
+            feedPet(inventory[i], i);
+            return;
+        }
+        }
+    }
+    
+    // Check for Shop Item Clicks (to purchase) -----
+    if (mouseX >= shopX && mouseX <= shopX + shopWidth) {
+        for (let i = 0; i < shopItems.length; i++) {
+        let box = shopItems[i].box;
+        if (
+            mouseX >= box.x && mouseX <= box.x + box.w &&
+            mouseY >= box.y && mouseY <= box.y + box.h
+        ) {
+            // Attempt to purchase the clicked shop item.
+            attemptPurchase(shopItems[i]);
+            return;
+        }
+        }
+    }
 }
+
+
+// Feeding Functionality
+// Called when an inventory item is clicked.
+function feedPet(item, index) {
+    console.log("Feeding pet with " + item.name + " which restores " + item.nutrition + " hunger points.");
+    
+    // Reduce the item’s quantity
+    if (item.quantity > 1) {
+      item.quantity--;
+    } else {
+      inventory.splice(index, 1);
+    }
+  }
+  
+  // Shop Purchase Functionality
+  function attemptPurchase(shopItem) {
+    if (playerCurrency >= shopItem.price) {
+      playerCurrency -= shopItem.price;
+      addToInventory(shopItem.name);
+      console.log("Purchased " + shopItem.name);
+    } else {
+      console.log("Not enough currency to buy " + shopItem.name);
+    }
+  }
+  
+  // Add the purchased item to the player's inventory.
+  function addToInventory(itemName) {
+    // Check if the item is already in inventory.
+    for (let i = 0; i < inventory.length; i++) {
+      if (inventory[i].name === itemName) {
+        inventory[i].quantity++;
+        return;
+      }
+    }
+    // If not found, add it using the details from itemDetails.
+    let details = itemDetails[itemName];
+    if (details) {
+      inventory.push({ 
+        name: itemName, 
+        quantity: 1, 
+        nutrition: details.nutrition, 
+        description: details.description 
+      });
+    }
+  }
