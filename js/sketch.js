@@ -14,6 +14,11 @@ let timerP = 0;
 let isTimerDone = false;
 let elapsedTime = 0;
 let canCollect = false;  // If the xp can be collected
+
+let health = 50;
+let maxHealth = 50;
+let dmgButton;
+let damage = 10;
 // End of pomomon initializing -------------------------------------------------------------------------------
 
 // Initialize store and inventory ----------------------------------------------------------------------------
@@ -65,6 +70,7 @@ function preload() {
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
+    //createCanvas(1440, 1080);
     textAlign(CENTER, CENTER);
     textSize(24);
     timer = setInterval(tick, 1000); // Start a timer that calls tick() every second
@@ -80,6 +86,10 @@ function setup() {
     button.position(width/3, height/2);
     button.mousePressed(increaseExperience);
     button.attribute('disabled', '');
+
+    dmgButton = createButton('Take Damage');
+    dmgButton.position(width/3, height/2 + 250);
+    dmgButton.mousePressed(takeDamage);
     
     resetTimerP();
 }
@@ -188,13 +198,18 @@ function draw() {
       
       fill(0, 255, 0);
       noStroke();
-      rect(8 * width/28, 3 * height/7, map(experience, 0, maxExperience, 0, 300), 30);
+      rect(8 * width/28, 3 * height/7, map(experience, 0, maxExperience, 0, 300), 30); // experience bar
+
+      fill(255, 0, 0);
+      noStroke();
+      rect(8 * width/28, 3 * height/7 + 250, map(health, 0, maxHealth, 0, 300), 30); // health bar
       
       fill(0);
       textSize(20);
       textAlign(CENTER, CENTER);
       text('Level: ' + level, 4 * width / 11, 2 * height/7);
       text('Experience: ' + experience + '/' + maxExperience, 4 * width / 11, 6 * height/13);
+      text('Health: ' + health + '/' + maxHealth, 4 * width/11, 6 * height/13 + 250);
       
       if (!isTimerDone) {
         elapsedTime = floor((millis() - timerP) / 1000);
@@ -299,11 +314,13 @@ function nextPhase() {
 
     if (focusCount >= 4 && phaseIndex === 0) {
         phaseIndex = 2; // Move to Long Break
+        playerCurrency += 200;
     } else if (phaseIndex === 2) {
         focusCount = 0; // Reset Pomodoro count after the long break ends
         phaseIndex = 0; // Return to Pomomon (focus phase)
     } else if (phaseIndex === 0) {
         phaseIndex = 1; // Move to Short Break
+        playerCurrency += 100;
     } else {
         phaseIndex = 0; // Return to Pomomon (focus phase)
     }
@@ -386,6 +403,11 @@ function mousePressed() {
 function feedPet(item, index) {
     console.log("Feeding pet with " + item.name + " which restores " + item.nutrition + " hunger points.");
     
+    // Restore health
+    health += item.nutrition;
+    if (health > maxHealth)
+      health = maxHealth;
+
     // Reduce the item’s quantity
     if (item.quantity > 1) {
       item.quantity--;
@@ -440,4 +462,11 @@ function feedPet(item, index) {
   
   function resetTimerP() {
     timerP = millis();
+  }
+
+  function takeDamage() {
+    health -= damage;
+
+    if (health < 0)
+      health = 0;
   }
