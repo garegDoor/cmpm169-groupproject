@@ -15,10 +15,17 @@ let isTimerDone = false;
 let elapsedTime = 0;
 let canCollect = false;  // If the xp can be collected
 
-let health = 50;
-let maxHealth = 50;
+let health = 300;
+let maxHealth = 300;
 let dmgButton;
 let damage = 10;
+
+let inBattle = false;
+let enemyHealth = 150;
+let enemyMaxHealth = 30;
+let enemyDamage = 1;
+let playerAutoAttack = 1;
+
 // End of pomomon initializing -------------------------------------------------------------------------------
 
 // Initialize store and inventory ----------------------------------------------------------------------------
@@ -65,6 +72,7 @@ let hasStarted = false; // Tracks if the timer has been started at least once
 function preload() {
     eggImage = loadImage('egg.png');  // Just use this to load the egg image
     monsterImage = loadImage('monster.png');  // Load the monster image (Any placeholder will do)
+    lockImage = loadImage('lock.png')
   }
   
 
@@ -77,19 +85,10 @@ function setup() {
 
     // set Panel layout for Shop and Inventory -------------------------------------
     inventoryX = 2 * width / 4 + inventoryWidth/4;
-    inventoryY = height / 4 + 40;
+    inventoryY = height / 4 + 100;
     shopX = 2 * width / 4 + inventoryWidth + shopWidth;
-    shopY = height/4 + 40;
+    shopY = height/4 + 100;
     // ------------------------------------------------------------------------------
-
-    button = createButton('Collect Experience');
-    button.position(width/3, height/2);
-    button.mousePressed(increaseExperience);
-    button.attribute('disabled', '');
-
-    dmgButton = createButton('Take Damage');
-    dmgButton.position(width/3, height/2 + 250);
-    dmgButton.mousePressed(takeDamage);
     
     resetTimerP();
 }
@@ -118,112 +117,99 @@ function draw() {
     if (hasStarted && isRunning) {
         drawButton("\u23ED", width / 2 + 100, buttonY, '#ffffff', 50, 50);
     }
-
+  
     // Display the Pomodoro count below the button
     fill(0);
     textSize(20);
     text(`Pomodoro Count: ${focusCount}`, width / 2, buttonY + 80);
 
     drawPomomonSection();
-    drawInventorySection();
+    // Display battle elements 
+    if (inBattle && hasStarted) {
+      isEgg = false;
+      fill(200, 0, 0);
+      rect(width / 3 *2 - 150, height / 3, 300, 300, 20);
+      fill(0);
+      textSize(20);
+      text(`Enemy HP: ${enemyHealth} / ${enemyMaxHealth}`, width / 3 * 2 , height / 3 + 400);
+    }
 
     // Store and Inventory -----------------------------------------------------------------
 
-    //Display Player Currency
-    textSize(18);
-    fill(0);
-    textAlign(CENTER, TOP);
-    text("Currency: " + playerCurrency, 11 * width / 17, height /4);
+    if (phaseIndex !== 0 && enemyHealth == 0) { // Hide inventory and shop during short break
+      drawInventorySection();
+      
+      // Display Player Currency
+      textSize(18);
+      fill(0);
+      textAlign(CENTER, TOP);
+      text("Currency: " + playerCurrency, 11 * width / 17 - 40, height / 4 + 60);
+      
+      // Draw Inventory Panel
+      fill(240);
+      stroke(0);
+      let invPanelHeight = (inventory.length + 1) * (ITEM_HEIGHT + ITEM_PADDING) + ITEM_PADDING;
+      rect(inventoryX, inventoryY, inventoryWidth, invPanelHeight);
+      noStroke();
 
-    // Draw Inventory Panel
-    // Background
-    fill(240);
-    stroke(0);
-    let invPanelHeight = (inventory.length + 1) * (ITEM_HEIGHT + ITEM_PADDING) + ITEM_PADDING;
-    rect(inventoryX, inventoryY, inventoryWidth, invPanelHeight);
-    noStroke();
+      fill(0);
+      textAlign(LEFT, CENTER);
+      text("Inventory:", inventoryX + ITEM_PADDING, inventoryY + ITEM_PADDING + ITEM_HEIGHT / 2);
 
-    // Header for inventory
-    fill(0);
-    textAlign(LEFT, CENTER);
-    text("Inventory:", inventoryX + ITEM_PADDING, inventoryY + ITEM_PADDING + ITEM_HEIGHT / 2);
+      for (let i = 0; i < inventory.length; i++) {
+          let item = inventory[i];
+          let y = inventoryY + ITEM_PADDING + (i + 1) * (ITEM_HEIGHT + ITEM_PADDING);
+          let label = item.name + " (" + item.quantity + ")";
+          text(label, inventoryX + ITEM_PADDING, y + ITEM_HEIGHT / 2);
+          item.box = { x: inventoryX + ITEM_PADDING, y: y, w: textWidth(label), h: ITEM_HEIGHT };
+      }
 
-    // List each inventory item
-    for (let i = 0; i < inventory.length; i++) {
-        let item = inventory[i];
-        let y = inventoryY + ITEM_PADDING + (i + 1) * (ITEM_HEIGHT + ITEM_PADDING);
-        let label = item.name + " (" + item.quantity + ")";
-        text(label, inventoryX + ITEM_PADDING, y + ITEM_HEIGHT / 2);
-        // Click detection
-        item.box = {
-        x: inventoryX + ITEM_PADDING,
-        y: y,
-        w: textWidth(label),
-        h: ITEM_HEIGHT
-        };
+      // Draw Shop Panel
+      fill(240);
+      stroke(0);
+      let shopPanelHeight = (shopItems.length + 1) * (ITEM_HEIGHT + ITEM_PADDING) + ITEM_PADDING;
+      rect(shopX, shopY, shopWidth, shopPanelHeight);
+      noStroke();
+
+      fill(0);
+      textAlign(LEFT, CENTER);
+      text("Shop:", shopX + ITEM_PADDING, shopY + ITEM_PADDING + ITEM_HEIGHT / 2);
+
+      for (let i = 0; i < shopItems.length; i++) {
+          let item = shopItems[i];
+          let y = shopY + ITEM_PADDING + (i + 1) * (ITEM_HEIGHT + ITEM_PADDING);
+          let label = item.name + " - " + item.price + " currency";
+          text(label, shopX + ITEM_PADDING, y + ITEM_HEIGHT / 2);
+          item.box = { x: shopX + ITEM_PADDING, y: y, w: textWidth(label), h: ITEM_HEIGHT };
+      }
     }
 
-    // Draw Shop Panel
-    fill(240);
-    stroke(0);
-    let shopPanelHeight = (shopItems.length + 1) * (ITEM_HEIGHT + ITEM_PADDING) + ITEM_PADDING;
-    rect(shopX, shopY, shopWidth, shopPanelHeight);
-    noStroke();
-
-    // Header for shop
-    fill(0);
-    textAlign(LEFT, CENTER);
-    text("Shop:", shopX + ITEM_PADDING, shopY + ITEM_PADDING + ITEM_HEIGHT / 2);
-
-    // Shop item with its price
-    for (let i = 0; i < shopItems.length; i++) {
-        let item = shopItems[i];
-        let y = shopY + ITEM_PADDING + (i + 1) * (ITEM_HEIGHT + ITEM_PADDING);
-        let label = item.name + " - " + item.price + " currency";
-        text(label, shopX + ITEM_PADDING, y + ITEM_HEIGHT / 2);
-        item.box = {
-        x: shopX + ITEM_PADDING,
-        y: y,
-        w: textWidth(label),
-        h: ITEM_HEIGHT
-        };
+    if(phaseIndex == 0){
+      image(lockImage, width / 2 - 800 / 2 + 400, height / 2 - 700 / 2, 800, 700);
     }
+
 
     // Pomomon Code: -------------------------------------------------------------------------------
     if (isEgg) {
-        image(eggImage, width/3, height/3, 100, 100);
+        image(eggImage, width/3, height/3, 200, 250);
       } else {
-        image(monsterImage, width/3, height/3, 100, 100);
+        image(monsterImage, width/3, height/3, 200, 200);
       }
       
       fill(0, 255, 0);
       noStroke();
-      rect(8 * width/28, 3 * height/7, map(experience, 0, maxExperience, 0, 300), 30); // experience bar
+      rect(9 * width/28, 3 * height/7 + 150, map(experience, 0, maxExperience, 0, 300), 30); // experience bar
 
       fill(255, 0, 0);
       noStroke();
-      rect(8 * width/28, 3 * height/7 + 250, map(health, 0, maxHealth, 0, 300), 30); // health bar
+      rect(9 * width/28, 3 * height/7 + 250, map(health, 0, maxHealth, 0, 300), 30); // health bar
       
       fill(0);
       textSize(20);
       textAlign(CENTER, CENTER);
       text('Level: ' + level, 4 * width / 11, 2 * height/7);
-      text('Experience: ' + experience + '/' + maxExperience, 4 * width / 11, 6 * height/13);
+      text('Experience: ' + experience + '/' + maxExperience, 4 * width / 11, 6 * height/13 + 150);
       text('Health: ' + health + '/' + maxHealth, 4 * width/11, 6 * height/13 + 250);
-      
-      if (!isTimerDone) {
-        elapsedTime = floor((millis() - timerP) / 1000);
-        textSize(18);
-        text('Time until monster: ' + (5 - elapsedTime) + 's', 4 * width / 11, 7 * height /13);
-        
-        // Once time has elapsed the button can be pressed and the monster will be shown
-        if (elapsedTime >= 5) {
-          isEgg = false;
-          isTimerDone = true;
-          button.removeAttribute('disabled');
-          canCollect = true;
-        }
-      }
     
       if (experience >= maxExperience) {
         experience = 0;
@@ -318,9 +304,11 @@ function nextPhase() {
     } else if (phaseIndex === 2) {
         focusCount = 0; // Reset Pomodoro count after the long break ends
         phaseIndex = 0; // Return to Pomomon (focus phase)
+        isEgg = true; 
     } else if (phaseIndex === 0) {
         phaseIndex = 1; // Move to Short Break
         playerCurrency += 100;
+        startBattle();  // Start battle during short breaks
     } else {
         phaseIndex = 0; // Return to Pomomon (focus phase)
     }
@@ -332,70 +320,131 @@ function nextPhase() {
 
 // Handle mouse clicks for buttons and phase selection
 function mousePressed() {
-    let indicatorWidth = 140;
-    let padding = 30;
-    let totalWidth = 500;
-    let startX = (width - totalWidth) / 2;
+    let indicatorWidth = 140;  // Width of each phase indicator
+    let padding = 30;  // Padding between indicators
+    let totalWidth = 500;  // Total width for all indicators combined
+    let startX = (width - totalWidth) / 2;  // Calculate starting X position
 
     // Check if a phase indicator was clicked
     for (let i = 0; i < phases.length; i++) {
         if (mouseX > startX + i * (indicatorWidth + padding) && 
             mouseX < startX + i * (indicatorWidth + padding) + indicatorWidth && 
             mouseY > 20 && mouseY < 60) {
-            phaseIndex = i;
-            timeLeft = phases[phaseIndex].duration;
-            isRunning = false;
-            hasStarted = false;
+            phaseIndex = i;  // Set phaseIndex based on which phase was clicked
+            timeLeft = phases[phaseIndex].duration;  // Set the time left based on the selected phase
+            isRunning = false;  // Pause the timer on phase change
+            hasStarted = false;  // Reset the start flag
         }
     }
 
-    const buttonY = 210;
-    
+    const buttonY = 210;  // Y position for the Start/Pause button
+
     // Check if the Start/Pause button was clicked
     if (mouseY > buttonY && mouseY < buttonY + 50) {
         if (mouseX > width / 2 - 75 && mouseX < width / 2 + 75) {
-            isRunning = !isRunning;
-            hasStarted = true;
+            isRunning = !isRunning;  // Toggle the running state of the timer
+            hasStarted = true;  // Mark the timer as started
         }
         
         // Check if the Skip button was clicked
         if (isRunning && mouseX > width / 2 + 100 && mouseX < width / 2 + 150) {
-            nextPhase();
+            nextPhase();  // Move to the next phase
         }
     }
 
-    // Inventory and Store ----------------------------------------------------------
+
+    // Inventory and Store Clicks ----------------------------------------------------------
+
     // Check for Inventory Item Clicks (to feed) 
     if (mouseX >= inventoryX && mouseX <= inventoryX + inventoryWidth) {
         // Loop through inventory items
         for (let i = 0; i < inventory.length; i++) {
-        let box = inventory[i].box;
-        if (
-            mouseX >= box.x && mouseX <= box.x + box.w &&
-            mouseY >= box.y && mouseY <= box.y + box.h
-        ) {
-            // Feed using the clicked item.
-            feedPet(inventory[i], i);
-            return;
-        }
+            let box = inventory[i].box;
+            if (
+                mouseX >= box.x && mouseX <= box.x + box.w &&
+                mouseY >= box.y && mouseY <= box.y + box.h
+            ) {
+                // Feed using the clicked item.
+                feedPet(inventory[i], i);
+                return;
+            }
         }
     }
-    
-    // Check for Shop Item Clicks (to purchase) -----
+
+    // Check for Shop Item Clicks (to purchase)
     if (mouseX >= shopX && mouseX <= shopX + shopWidth) {
         for (let i = 0; i < shopItems.length; i++) {
-        let box = shopItems[i].box;
-        if (
-            mouseX >= box.x && mouseX <= box.x + box.w &&
-            mouseY >= box.y && mouseY <= box.y + box.h
-        ) {
-            // Attempt to purchase the clicked shop item.
-            attemptPurchase(shopItems[i]);
-            return;
-        }
+            let box = shopItems[i].box;
+            if (
+                mouseX >= box.x && mouseX <= box.x + box.w &&
+                mouseY >= box.y && mouseY <= box.y + box.h
+            ) {
+                // Attempt to purchase the clicked shop item.
+                attemptPurchase(shopItems[i]);
+                return;
+            }
         }
     }
 }
+
+
+// Battle mechanic ----------------------------------------------------------
+let playerCanAct = true; // Track if the player can act
+let battleInterval; // Store the interval for automatic attacks
+
+function startBattle() {
+    inBattle = true;
+    enemyHealth = enemyMaxHealth + Math.floor(focusCount * 5); // Scale difficulty
+    enemyDamage *= focusCount; // Enemy deals more damage
+
+    // Start automatic attacks
+    battleInterval = setInterval(() => {
+        if (inBattle) {
+            playerAttack();
+        }
+    }, 1000); // Attack every second
+}
+
+function playerAttack() {
+    if (!inBattle) return; // Prevent attacking if battle is over
+
+    // let move = playerMoves[0]; // Assume the first move is the default attack
+
+    if(isRunning){
+      enemyHealth -= playerAutoAttack;
+    }
+    if (enemyHealth <= 0) {
+        endBattle(true);
+        return;
+    }
+
+    // Enemy attacks after a short delay
+    setTimeout(enemyTurn, 500);
+}
+
+function enemyTurn() {
+    
+    if(isRunning){
+      health -= enemyDamage;
+    }
+    if (health <= 0) {
+        endBattle(false);
+    }
+}
+
+function endBattle(playerWon) {
+    clearInterval(battleInterval); // Stop automatic attacks
+    inBattle = false;
+
+    if (playerWon) {
+        experience += enemyMaxHealth;
+        playerCurrency += 50;
+    } else {
+        health = maxHealth; // Reset health (could add penalty)
+    }
+}
+
+
 
 
 // Feeding Functionality
