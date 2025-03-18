@@ -134,6 +134,22 @@ function draw() {
       text(`Enemy HP: ${enemyHealth} / ${enemyMaxHealth}`, width / 3 * 2 , height / 3 + 400);
     }
 
+    // Handle long break motion detection --------------------------------------------------
+    if (phaseIndex == 2 && !outsideFrame && timeLeft > 10 * 60)
+    {
+      // Give the user a message saying they should step away from their computer for at least 5 minutes of this long break
+      fill(0);
+      textSize(30);
+      text('Please step away from your computer\n for at least the first 5 minutes of this long break.', 7 * width / 10, height / 7);
+
+      // Pause timer if they return to their computer
+      isRunning = false;
+    }
+    else if (phaseIndex == 2 && outsideFrame && timeLeft > 10 * 60)
+    {
+      isRunning = true;
+    }
+
     // Store and Inventory -----------------------------------------------------------------
 
     if (phaseIndex !== 0 && enemyHealth == 0) { // Hide inventory and shop during short break
