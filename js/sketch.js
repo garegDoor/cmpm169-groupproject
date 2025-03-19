@@ -20,6 +20,9 @@ let maxHealth = 300;
 let dmgButton;
 let damage = 10;
 
+let healthIncrement = 50; // Health increase per level
+let damageIncrement = 5;  // Damage increase per level
+
 let inBattle = false;
 let enemyHealth = 150;
 let enemyMaxHealth = 30;
@@ -47,15 +50,17 @@ let inventory = [];
 let shopItems = [
     { name: "Apple", price: 20 },
     { name: "Steak", price: 50 },
-    { name: "Carrot", price: 12 }
+    { name: "Carrot", price: 12 },
+    { name: "Energy Drink", price: 40 }
   ];
 
 // Details for each food item (used when adding to inventory).
 const itemDetails = {
-    "Apple":  { nutrition: 10, description: "A juicy apple." },
-    "Steak":  { nutrition: 30, description: "A hearty steak." },
-    "Carrot": { nutrition: 5,  description: "A crunchy carrot." }
-  };
+  "Apple":  { nutrition: 10, description: "A juicy apple.", experience: 15 },
+  "Steak":  { nutrition: 30, description: "A hearty steak." },
+  "Carrot": { nutrition: 5,  description: "A crunchy carrot.", experience: 10 },
+  "Energy Drink": { nutrition: 0, description: "A powerful energy drink.", experience: 0 }
+};
 
 // Panel layout
 let inventoryX, inventoryY;
@@ -281,7 +286,7 @@ function draw() {
     
       if (experience >= maxExperience) {
         experience = 0;
-        level++;
+        levelUp();
         textSize(24);
         text('Level Up! Now at Level ' + level, 4 * width / 11, 8 * height/13);
       }
@@ -416,6 +421,8 @@ function mousePressed() {
         
         // Check if the Skip button was clicked
         if (isRunning && mouseX > width / 2 + 100 && mouseX < width / 2 + 150) {
+            isEgg = true;
+            endBattle('skip');
             nextPhase();  // Move to the next phase
         }
     }
@@ -512,12 +519,14 @@ function endBattle(playerWon) {
     clearInterval(battleInterval); // Stop automatic attacks
     inBattle = false;
 
-    if (playerWon) {
+    if (playerWon == true) {
         experience += enemyMaxHealth;
         playerCurrency += 50;
-    } else {
+    } else if (playerWon == false){
         gameOver = true;
         // health = maxHealth; // Reset health (could add penalty)
+    } else if (playerWon == 'skip'){
+      return;
     }
 }
 
@@ -533,6 +542,18 @@ function feedPet(item, index) {
     health += item.nutrition;
     if (health > maxHealth)
       health = maxHealth;
+
+    // Add experience points
+    experience += itemDetails[item.name].experience;
+    if (experience >= maxExperience) {
+        experience = 0;
+        levelUp();
+    }
+    // Special effect for Energy Drink
+    if (item.name === "Energy Drink") {
+        damage += 5;
+        console.log("Damage increased by 5!");
+    }
 
     // Reduce the item’s quantity
     if (item.quantity > 1) {
@@ -597,6 +618,17 @@ function feedPet(item, index) {
       health = 0;
   }
 
+  // Leveling up
+  function levelUp() {
+    level++;
+    maxHealth += healthIncrement;
+    health = maxHealth; // Restore health to new max
+    damage += damageIncrement;
+
+    textSize(24);
+    text('Level Up! Now at Level ' + level, 4 * width / 11, 8 * height / 13);
+  }
+
   function displayGameOver() {
     background(0);
     fill(255, 0, 0);
@@ -628,4 +660,9 @@ function feedPet(item, index) {
     hasStarted = false;
     isRunning = false;
     inBattle = false;
+    
+    let enemyHealth = 150;
+    let enemyMaxHealth = 30;
+    let enemyDamage = 1;
+    let playerAutoAttack = 1;
   }
