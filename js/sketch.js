@@ -88,7 +88,6 @@ function preload() {
     lockImage = loadImage('lock.png');
     bugImage = loadImage('bugEnemy.png');
     snakeImage = loadImage('snakeEnemy.png');
-    phaseEndSound = loadSound('alarm.mp3');
   }
   
 
