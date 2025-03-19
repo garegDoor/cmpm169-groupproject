@@ -25,6 +25,14 @@ let enemyHealth = 150;
 let enemyMaxHealth = 30;
 let enemyDamage = 1;
 let playerAutoAttack = 1;
+let isMonsterShaking = false;
+let isEnemyShaking = false;
+let shakeStartTime = 0;
+let shakeDuration = 500;
+let bugImage;
+let snakeImage;
+let battleBackground;
+let gameOver = false;
 
 // End of pomomon initializing -------------------------------------------------------------------------------
 
@@ -72,7 +80,9 @@ let hasStarted = false; // Tracks if the timer has been started at least once
 function preload() {
     eggImage = loadImage('egg.png');  // Just use this to load the egg image
     monsterImage = loadImage('monster.png');  // Load the monster image (Any placeholder will do)
-    lockImage = loadImage('lock.png')
+    lockImage = loadImage('lock.png');
+    bugImage = loadImage('bugEnemy.png');
+    snakeImage = loadImage('snakeEnemy.png')
   }
   
 
@@ -97,6 +107,11 @@ function draw() {
     background(255); // White background
     textAlign(CENTER, CENTER);
     drawPhaseIndicators();
+  
+    if (gameOver) {
+        displayGameOver();
+        return;
+    }
 
     let currentColor = phases[phaseIndex].color;
 
@@ -127,8 +142,25 @@ function draw() {
     // Display battle elements 
     if (inBattle && hasStarted) {
       isEgg = false;
-      fill(200, 0, 0);
-      rect(width / 3 *2 - 150, height / 3, 300, 300, 20);
+      
+      let battleBackgroundX = width / 1.65;
+      let battleBackgroundY = height / 3.5;
+      
+      if (isEnemyShaking) {
+            let shakeAmount = 8; // Adjust for more/less shaking
+            let shakeSpeed = 0.02;
+            let shakeOffset = sin(millis() * shakeSpeed * TWO_PI) * shakeAmount;
+        
+            battleBackgroundY += shakeOffset;
+
+            // Stop shaking after the duration
+            if (millis() - shakeStartTime > shakeDuration) {
+                isEnemyShaking = false;
+            }
+        }
+      
+      image(battleBackground, battleBackgroundX, battleBackgroundY, 300, 300);
+      
       fill(0);
       textSize(20);
       text(`Enemy HP: ${enemyHealth} / ${enemyMaxHealth}`, width / 3 * 2 , height / 3 + 400);
@@ -207,9 +239,29 @@ function draw() {
 
     // Pomomon Code: -------------------------------------------------------------------------------
     if (isEgg) {
-        image(eggImage, width/3, height/3, 200, 250);
+        let shakeAmount = 5; // Adjust this value for more or less shaking
+        let shakeSpeed = 0.005; // Adjust this for a faster/slower shake
+        let shakeOffset = sin(millis() * shakeSpeed) * shakeAmount;
+
+        image(eggImage, width/3 + shakeOffset, height/3, 200, 250);
       } else {
-        image(monsterImage, width/3, height/3, 200, 200);
+        let monsterX = width / 3;
+        let monsterY = height / 3;
+    
+        if (isMonsterShaking) {
+            let shakeAmount = 8; // Adjust for more/less shaking
+            let shakeSpeed = 0.02;
+            let shakeOffset = sin(millis() * shakeSpeed * TWO_PI) * shakeAmount;
+        
+            monsterY += shakeOffset;
+
+            // Stop shaking after the duration
+            if (millis() - shakeStartTime > shakeDuration) {
+                isMonsterShaking = false;
+            }
+        }
+
+        image(monsterImage, monsterX, monsterY, 200, 200);
       }
       
       fill(0, 255, 0);
@@ -412,6 +464,8 @@ function startBattle() {
     inBattle = true;
     enemyHealth = enemyMaxHealth + Math.floor(focusCount * 5); // Scale difficulty
     enemyDamage *= focusCount; // Enemy deals more damage
+  
+    battleBackground = Math.random() < 0.5 ? bugImage : snakeImage;
 
     // Start automatic attacks
     battleInterval = setInterval(() => {
@@ -433,6 +487,9 @@ function playerAttack() {
         endBattle(true);
         return;
     }
+  
+    isMonsterShaking = true;
+    shakeStartTime = millis();
 
     // Enemy attacks after a short delay
     setTimeout(enemyTurn, 500);
@@ -443,6 +500,9 @@ function enemyTurn() {
     if(isRunning){
       health -= enemyDamage;
     }
+  
+    isEnemyShaking = true;
+  
     if (health <= 0) {
         endBattle(false);
     }
@@ -456,7 +516,8 @@ function endBattle(playerWon) {
         experience += enemyMaxHealth;
         playerCurrency += 50;
     } else {
-        health = maxHealth; // Reset health (could add penalty)
+        gameOver = true;
+        // health = maxHealth; // Reset health (could add penalty)
     }
 }
 
@@ -534,4 +595,37 @@ function feedPet(item, index) {
 
     if (health < 0)
       health = 0;
+  }
+
+  function displayGameOver() {
+    background(0);
+    fill(255, 0, 0);
+    textSize(50);
+    text("GAME OVER", width / 2, height / 3);
+    
+    textSize(20);
+    fill(255);
+    text("Press 'R' to Restart", width / 2, height / 2 + 50);
+  }
+
+  function keyPressed() {
+    if (key === 'R' || key === 'r') {
+        resetGame();
+    }
+  }
+
+  function resetGame() {
+    // Reset all necessary variables
+    health = maxHealth;
+    experience = 0;
+    level = 1;
+    playerCurrency = 150;
+    inventory = [];
+    gameOver = false;
+    phaseIndex = 0;
+    focusCount = 0;
+    timeLeft = phases[phaseIndex].duration;
+    hasStarted = false;
+    isRunning = false;
+    inBattle = false;
   }
