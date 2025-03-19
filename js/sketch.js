@@ -57,7 +57,7 @@ let shopItems = [
 // Details for each food item (used when adding to inventory).
 const itemDetails = {
   "Apple":  { nutrition: 10, description: "A juicy apple.", experience: 15 },
-  "Steak":  { nutrition: 30, description: "A hearty steak." },
+  "Steak":  { nutrition: 30, description: "A hearty steak.", experience: 75 },
   "Carrot": { nutrition: 5,  description: "A crunchy carrot.", experience: 10 },
   "Energy Drink": { nutrition: 0, description: "A powerful energy drink.", experience: 0 }
 };
@@ -87,7 +87,8 @@ function preload() {
     monsterImage = loadImage('monster.png');  // Load the monster image (Any placeholder will do)
     lockImage = loadImage('lock.png');
     bugImage = loadImage('bugEnemy.png');
-    snakeImage = loadImage('snakeEnemy.png')
+    snakeImage = loadImage('snakeEnemy.png');
+    phaseEndSound = loadSound('alarm.mp3');
   }
   
 
